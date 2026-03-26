@@ -3,6 +3,7 @@ package com.projeto.almoxarifado.service;
 import com.projeto.almoxarifado.model.User;
 import com.projeto.almoxarifado.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +28,7 @@ public class UserService {
         return repository.save(user);
     }
 
-    //Login
+    @PostMapping("/login")
     public User login (String email, String senha) {
 
         Optional<User> usuarioOptional = repository.findByEmail(email);
