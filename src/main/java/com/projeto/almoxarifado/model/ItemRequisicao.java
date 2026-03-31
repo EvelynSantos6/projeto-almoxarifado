@@ -2,12 +2,14 @@ package com.projeto.almoxarifado.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import org.hibernate.cache.spi.support.AbstractReadWriteAccess;
-import org.springframework.data.annotation.Id;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 @Entity
 @Table(name = "itens_requisicao")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ItemRequisicao {
 
     @Id
@@ -15,16 +17,13 @@ public class ItemRequisicao {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "requisicao_id")
+    @JoinColumn(name = "requisicao_id", nullable = false)
     private Requisicao requisicao;
 
     @ManyToOne
-    @JoinColumn(name = "item_id")
-    private AbstractReadWriteAccess.Item item;
+    @JoinColumn(name = "item_id", nullable = false)
+    private Item item;
 
+    @Column(nullable = false)
     private Integer quantidade;
-
-    private Integer quantidadeDevolvida;
-
-    private Boolean devolvido = false;
 }

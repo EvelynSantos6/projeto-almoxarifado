@@ -3,44 +3,39 @@ package com.projeto.almoxarifado.model;
 import com.projeto.almoxarifado.enums.StatusRequisicao;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import org.springframework.data.annotation.Id;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "requisicoes")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Requisicao {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(unique = true, nullable = false)
-    private String numeroRequisicao; // Número aleatório tipo "387"
+    private Long numeroRequisicao;
 
     @ManyToOne
-    @JoinColumn(name = "aluno_id")
+    @JoinColumn(name = "aluno_id", nullable = false)
     private Usuario aluno;
 
     @ManyToOne
     @JoinColumn(name = "funcionario_id")
-    private Usuario funcionarioAprovador;
+    private Usuario funcionario;
 
-    @OneToMany(mappedBy = "requisicao", cascade = CascadeType.ALL)
-    private List<ItemRequisicao> itens = new ArrayList<>();
+    @OneToMany(mappedBy = "requisicao", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private List<ItemRequisicao> itens;
 
     @Enumerated(EnumType.STRING)
     private StatusRequisicao status;
 
     private LocalDateTime dataRequisicao;
-
     private LocalDateTime dataAprovacao;
-
     private String observacao;
-
-    private Boolean precisaAutorizacao = false;
-
-    private String autorizacaoProfessor; // caminho do arquivo ou texto
+    private boolean autorizacaoProfessor = false;
 }

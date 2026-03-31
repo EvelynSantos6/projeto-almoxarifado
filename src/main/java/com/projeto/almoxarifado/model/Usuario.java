@@ -1,15 +1,13 @@
 package com.projeto.almoxarifado.model;
 
-import com.projeto.almoxarifado.enums.TipoUsuario;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
 import java.util.Collection;
-import java.util.List;
+import java.util.Collections;
 
 @Entity
 @Table(name = "usuarios")
@@ -23,6 +21,9 @@ public class Usuario implements UserDetails {
     @Column(unique = true, nullable = false)
     private String username;
 
+    @Column(unique = true, nullable = false)
+    private String email;
+
     @Column(nullable = false)
     private String password;
 
@@ -31,28 +32,39 @@ public class Usuario implements UserDetails {
 
     private String turma;
 
-    @Enumerated(EnumType.STRING)
-    private TipoUsuario tipo;
+    @Column(nullable = false)
+    private String tipo;  // "ALUNO" ou "FUNCIONARIO"
 
-    @Column(unique = true)
-    private String email;
+    private boolean ativo = true;
 
-    private Boolean ativo = true;
-
+    // Implementação dos métodos do UserDetails
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + tipo.name()));
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + tipo));
     }
 
     @Override
-    public boolean isAccountNonExpired() { return true; }
+    public String getUsername() {
+        return this.username;
+    }
 
     @Override
-    public boolean isAccountNonLocked() { return true; }
+    public boolean isAccountNonExpired() {
+        return true;
+    }
 
     @Override
-    public boolean isCredentialsNonExpired() { return true; }
+    public boolean isAccountNonLocked() {
+        return true;
+    }
 
     @Override
-    public boolean isEnabled() { return ativo; }
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return this.ativo;
+    }
 }

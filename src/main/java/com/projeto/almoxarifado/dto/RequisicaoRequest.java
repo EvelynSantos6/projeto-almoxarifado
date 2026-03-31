@@ -1,16 +1,10 @@
 package com.projeto.almoxarifado.dto;
 
 import lombok.Data;
-
-import java.util.List;
+import java.util.Map;
 
 @Data
 public class RequisicaoRequest {
-    private List<ItemRequisicaoDTO> itens;
-
-    @Data
-    public static class ItemRequisicaoDTO {
-        private Long itemId;
-        private Integer quantidade;
-    }
+    private Map<Long, Integer> itens;  // Chave: ID do item, Valor: quantidade
+    private boolean autorizacaoProfessor;
 }

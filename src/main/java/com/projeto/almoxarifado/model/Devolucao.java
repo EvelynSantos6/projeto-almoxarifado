@@ -1,5 +1,6 @@
 package com.projeto.almoxarifado.model;
 
+import com.projeto.almoxarifado.enums.StatusDevolucao;
 import jakarta.persistence.*;
 import lombok.Data;
 

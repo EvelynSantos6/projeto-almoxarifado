@@ -1,6 +1,5 @@
 package com.projeto.almoxarifado.service;
 
-
 import com.projeto.almoxarifado.config.JwtUtil;
 import com.projeto.almoxarifado.dto.LoginRequest;
 import com.projeto.almoxarifado.dto.LoginResponse;
@@ -35,14 +34,20 @@ public class AuthService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // Buscar por username ou email
         return usuarioRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + username));
     }
 
     public Usuario register(UsuarioRequest request) {
-        // Verificar se usuário já existe
+        // Verificar se username já existe
         if (usuarioRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Usuário já existe!");
+            throw new RuntimeException("Username já existe!");
+        }
+
+        // Verificar se email já existe (se tiver método no repository)
+        if (usuarioRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email já cadastrado!");
         }
 
         Usuario usuario = new Usuario();
@@ -59,6 +64,7 @@ public class AuthService implements UserDetailsService {
 
     public LoginResponse login(LoginRequest request) {
         try {
+            // Autenticar o usuário
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getUsername(),
@@ -66,17 +72,23 @@ public class AuthService implements UserDetailsService {
                     )
             );
 
+            // Colocar no contexto de segurança
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            UserDetails userDetails = loadUserByUsername(request.getUsername());
-            String token = jwtUtil.generateToken(userDetails);
 
-            Usuario usuario = usuarioRepository.findByUsername(request.getUsername()).orElseThrow();
+            // Buscar o usuário completo
+            Usuario usuario = usuarioRepository.findByUsername(request.getUsername())
+                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado após autenticação"));
 
+            // Gerar o token JWT
+            String token = jwtUtil.generateToken(usuario);
+
+            // Construir resposta
             LoginResponse response = new LoginResponse();
             response.setToken(token);
             response.setTipo(usuario.getTipo());
             response.setUsername(usuario.getUsername());
             response.setNome(usuario.getNome());
+            response.setEmail(usuario.getEmail());
 
             return response;
         } catch (Exception e) {

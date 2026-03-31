@@ -1,216 +1,135 @@
 package com.projeto.almoxarifado.service;
 
 import com.projeto.almoxarifado.dto.RequisicaoRequest;
-import com.projeto.almoxarifado.enums.StatusDevolucao;
-import com.projeto.almoxarifado.enums.StatusRequisicao;
-import com.projeto.almoxarifado.enums.TipoItem;
-import com.projeto.almoxarifado.model.Devolucao;
 import com.projeto.almoxarifado.model.Item;
 import com.projeto.almoxarifado.model.ItemRequisicao;
 import com.projeto.almoxarifado.model.Requisicao;
 import com.projeto.almoxarifado.model.Usuario;
-import com.projeto.almoxarifado.repository.DevolucaoRepository;
+import com.projeto.almoxarifado.enums.StatusRequisicao;
+import com.projeto.almoxarifado.enums.TipoItem;
 import com.projeto.almoxarifado.repository.ItemRepository;
 import com.projeto.almoxarifado.repository.RequisicaoRepository;
-import com.projeto.almoxarifado.repository.UsuarioRepository;
-import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Random;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
+@RequiredArgsConstructor
+@Transactional
 public class RequisicaoService {
 
-    @Autowired
-    private RequisicaoRepository requisicaoRepository;
+    private final RequisicaoRepository requisicaoRepository;
+    private final ItemRepository itemRepository;
 
-    @Autowired
-    private ItemRepository itemRepository;
+    public Requisicao criarRequisicao(RequisicaoRequest request, Usuario aluno) {
+        // 1. Gerar número aleatório da requisição
+        Long numeroRequisicao = gerarNumeroRequisicao();
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-
-    @Autowired
-    private DevolucaoRepository devolucaoRepository; // ADICIONADO!
-
-    @Transactional
-    public Requisicao criarRequisicao(RequisicaoRequest request, Long alunoId) {
+        // 2. Criar a requisição
         Requisicao requisicao = new Requisicao();
-        requisicao.setAluno(usuarioRepository.findById(alunoId)
-                .orElseThrow(() -> new RuntimeException("Aluno não encontrado")));
-        requisicao.setNumeroRequisicao(gerarNumeroRequisicao());
+        requisicao.setNumeroRequisicao(numeroRequisicao);
+        requisicao.setAluno(aluno);
         requisicao.setStatus(StatusRequisicao.PENDENTE);
         requisicao.setDataRequisicao(LocalDateTime.now());
+        requisicao.setAutorizacaoProfessor(request.isAutorizacaoProfessor());
+        requisicao.setItens(new ArrayList<>());
 
-        boolean precisaAutorizacao = false;
+        // 3. Processar cada item da requisição (usando Map)
+        for (Map.Entry<Long, Integer> entry : request.getItens().entrySet()) {
+            Long itemId = entry.getKey();
+            Integer quantidade = entry.getValue();
 
-        for (RequisicaoRequest.ItemRequisicaoDTO itemReq : request.getItens()) {
-            // CORRIGIDO: usar a classe Item correta, não AbstractReadWriteAccess.Item
-            Item item = itemRepository.findById(itemReq.getItemId())
-                    .orElseThrow(() -> new RuntimeException("Item não encontrado: " + itemReq.getItemId()));
+            // Buscar o item no banco de dados
+            Item item = itemRepository.findById(itemId)
+                    .orElseThrow(() -> new RuntimeException("Item não encontrado com ID: " + itemId));
 
-            if (item.getTipo() == TipoItem.RESTRITO) {
-                precisaAutorizacao = true;
+            // Validar se tem estoque disponível
+            if (item.getQuantidadeDisponivel() < quantidade) {
+                throw new RuntimeException(
+                        "Estoque insuficiente para o item: " + item.getNome() +
+                                ". Disponível: " + item.getQuantidadeDisponivel() +
+                                ", Solicitado: " + quantidade
+                );
             }
 
-            if (item.getQuantidadeEstoque() < itemReq.getQuantidade()) {
-                throw new RuntimeException("Estoque insuficiente para o item: " + item.getNome() +
-                        ". Disponível: " + item.getQuantidadeEstoque());
+            // Validar se é item restrito e tem autorização
+            if (item.getTipo() == TipoItem.RESTRITO && !request.isAutorizacaoProfessor()) {
+                throw new RuntimeException(
+                        "ATENÇÃO: " + item.getNome() + " é um item restrito! " +
+                                "Você precisa apresentar autorização do professor para retirar este item."
+                );
             }
 
+            // Criar o item da requisição
             ItemRequisicao itemRequisicao = new ItemRequisicao();
             itemRequisicao.setItem(item);
-            itemRequisicao.setQuantidade(itemReq.getQuantidade());
-            itemRequisicao.setQuantidadeDevolvida(0);
-            itemRequisicao.setDevolvido(false);
+            itemRequisicao.setQuantidade(quantidade);
             itemRequisicao.setRequisicao(requisicao);
 
             requisicao.getItens().add(itemRequisicao);
         }
 
-        requisicao.setPrecisaAutorizacao(precisaAutorizacao);
-
+        // 4. Salvar a requisição
         return requisicaoRepository.save(requisicao);
     }
 
-    @Transactional
-    public Requisicao aprovarRequisicao(Long requisicaoId, Long funcionarioId) {
-        Requisicao requisicao = requisicaoRepository.findById(requisicaoId)
-                .orElseThrow(() -> new RuntimeException("Requisição não encontrada"));
+    public Requisicao aprovarRequisicao(Long numeroRequisicao, Usuario funcionario) {
+        // 1. Buscar a requisição
+        Requisicao requisicao = requisicaoRepository.findById(numeroRequisicao)
+                .orElseThrow(() -> new RuntimeException("Requisição não encontrada: " + numeroRequisicao));
 
-        Usuario funcionario = usuarioRepository.findById(funcionarioId)
-                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
+        // 2. Validar se está pendente
+        if (requisicao.getStatus() != StatusRequisicao.PENDENTE) {
+            throw new RuntimeException(
+                    "Esta requisição já foi processada. Status atual: " + requisicao.getStatus()
+            );
+        }
 
-        requisicao.setFuncionarioAprovador(funcionario);
-        requisicao.setStatus(StatusRequisicao.APROVADA);
-        requisicao.setDataAprovacao(LocalDateTime.now());
-
-        // Subtrair do estoque
+        // 3. Processar cada item
         for (ItemRequisicao itemReq : requisicao.getItens()) {
             Item item = itemReq.getItem();
-            item.setQuantidadeEstoque(item.getQuantidadeEstoque() - itemReq.getQuantidade());
+
+            // Validar item restrito
+            if (item.getTipo() == TipoItem.RESTRITO && !requisicao.isAutorizacaoProfessor()) {
+                throw new RuntimeException(
+                        "Item restrito '" + item.getNome() +
+                                "' requer autorização do professor para ser retirado"
+                );
+            }
+
+            // Subtrair do estoque
+            int novaQuantidade = item.getQuantidadeDisponivel() - itemReq.getQuantidade();
+            if (novaQuantidade < 0) {
+                throw new RuntimeException(
+                        "Erro no estoque do item: " + item.getNome()
+                );
+            }
+
+            item.setQuantidadeDisponivel(novaQuantidade);
             itemRepository.save(item);
         }
 
-        return requisicaoRepository.save(requisicao);
-    }
-
-    @Transactional
-    public Devolucao registrarDevolucao(Long requisicaoId, Long itemId, Integer quantidade, Long funcionarioId) {
-        Requisicao requisicao = requisicaoRepository.findById(requisicaoId)
-                .orElseThrow(() -> new RuntimeException("Requisição não encontrada"));
-
-        Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new RuntimeException("Item não encontrado"));
-
-        if (item.getTipo() != TipoItem.FERRAMENTA) {
-            throw new RuntimeException("Este item não requer devolução");
-        }
-
-        // Atualizar quantidade devolvida
-        for (ItemRequisicao itemReq : requisicao.getItens()) {
-            if (itemReq.getItem().getId().equals(itemId)) {
-                int novaQuantidadeDevolvida = itemReq.getQuantidadeDevolvida() + quantidade;
-
-                if (novaQuantidadeDevolvida > itemReq.getQuantidade()) {
-                    throw new RuntimeException("Quantidade devolvida excede a quantidade requisitada");
-                }
-
-                itemReq.setQuantidadeDevolvida(novaQuantidadeDevolvida);
-                if (itemReq.getQuantidadeDevolvida().equals(itemReq.getQuantidade())) {
-                    itemReq.setDevolvido(true);
-                }
-                break;
-            }
-        }
-
-        // Registrar devolução
-        Devolucao devolucao = new Devolucao();
-        devolucao.setRequisicao(requisicao);
-        devolucao.setItem(item);
-        devolucao.setQuantidade(quantidade);
-        devolucao.setDataDevolucao(LocalDateTime.now());
-        devolucao.setStatus(StatusDevolucao.DEVOLVIDO);
-
-        // Devolver ao estoque
-        item.setQuantidadeEstoque(item.getQuantidadeEstoque() + quantidade);
-        itemRepository.save(item);
-
-        return devolucaoRepository.save(devolucao);
-    }
-
-    // MÉTODOS ADICIONADOS (que faltavam)
-
-    public List<Requisicao> listarPendentes() {
-        return requisicaoRepository.findByStatus(StatusRequisicao.PENDENTE);
-    }
-
-    public List<Requisicao> listarPorAluno(Long alunoId) {
-        return requisicaoRepository.findByAlunoId(alunoId);
-    }
-
-    public List<Requisicao> listarTodas() {
-        return requisicaoRepository.findAll();
-    }
-
-    public Requisicao buscarPorId(Long id) {
-        return requisicaoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Requisição não encontrada com ID: " + id));
-    }
-
-    @Transactional
-    public Requisicao rejeitarRequisicao(Long requisicaoId, Long funcionarioId, String motivo) {
-        Requisicao requisicao = requisicaoRepository.findById(requisicaoId)
-                .orElseThrow(() -> new RuntimeException("Requisição não encontrada"));
-
-        Usuario funcionario = usuarioRepository.findById(funcionarioId)
-                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
-
-        requisicao.setStatus(StatusRequisicao.REJEITADA);
-        requisicao.setFuncionarioAprovador(funcionario);
-        requisicao.setObservacao(motivo);
+        // 4. Atualizar a requisição
+        requisicao.setStatus(StatusRequisicao.APROVADA);
+        requisicao.setFuncionario(funcionario);
+        requisicao.setDataAprovacao(LocalDateTime.now());
 
         return requisicaoRepository.save(requisicao);
     }
 
-    @Transactional
-    public void cancelarRequisicao(Long requisicaoId, Long alunoId) {
-        Requisicao requisicao = requisicaoRepository.findById(requisicaoId)
-                .orElseThrow(() -> new RuntimeException("Requisição não encontrada"));
-
-        // Verificar se o aluno é o dono da requisição
-        if (!requisicao.getAluno().getId().equals(alunoId)) {
-            throw new RuntimeException("Você só pode cancelar suas próprias requisições");
-        }
-
-        // Verificar se a requisição ainda pode ser cancelada
-        if (requisicao.getStatus() != StatusRequisicao.PENDENTE) {
-            throw new RuntimeException("Apenas requisições pendentes podem ser canceladas");
-        }
-
-        requisicao.setStatus(StatusRequisicao.CANCELADA);
-        requisicaoRepository.save(requisicao);
-    }
-
-    public List<Requisicao> listarRequisicoesPendentesAutorizacao() {
-        return requisicaoRepository.findByStatusAndPrecisaAutorizacao(StatusRequisicao.PENDENTE, true);
-    }
-
-    @Transactional
-    public Requisicao adicionarAutorizacaoProfessor(Long requisicaoId, String autorizacao) {
-        Requisicao requisicao = requisicaoRepository.findById(requisicaoId)
-                .orElseThrow(() -> new RuntimeException("Requisição não encontrada"));
-
-        requisicao.setAutorizacaoProfessor(autorizacao);
-
-        return requisicaoRepository.save(requisicao);
-    }
-
-    private String gerarNumeroRequisicao() {
-        Random random = new Random();
-        return String.valueOf(100 + random.nextInt(900));
+    /**
+     * Gerar número aleatório de 3 dígitos para a requisição
+     */
+    private Long gerarNumeroRequisicao() {
+        Long numero;
+        do {
+            numero = ThreadLocalRandom.current().nextLong(100, 1000);
+        } while (requisicaoRepository.existsById(numero));
+        return numero;
     }
 }

@@ -3,6 +3,8 @@ package com.projeto.almoxarifado.enums;
 public enum StatusRequisicao {
     PENDENTE,
     APROVADA,
-    REJEITADA,
-    CANCELADA
+    NEGADA,
+    ENTREGUE,
+    DEVOLVIDO_PARCIAL,
+    DEVOLVIDO_TOTAL
 }

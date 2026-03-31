@@ -9,6 +9,6 @@ public class UsuarioRequest {
     private String password;
     private String nome;
     private String turma;
-    private TipoUsuario tipo;
+    private String tipo;  // "ALUNO" ou "FUNCIONARIO"
     private String email;
 }
