@@ -18,7 +18,6 @@ import java.util.List;
 public class Requisicao {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) //
     private Long id;
 
     @ManyToOne

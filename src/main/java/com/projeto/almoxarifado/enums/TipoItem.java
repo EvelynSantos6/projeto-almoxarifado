@@ -1,7 +1,7 @@
 package com.projeto.almoxarifado.enums;
 
 public enum TipoItem {
-    CONSUMIVEL,      // não devolve
-    FERRAMENTA,      // devolve no final do dia
-    RESTRITO        // precisa de autorização do professor
+    CONSUMIVEL, // Ex: Parafusos, Lixas, Colas
+    FERRAMENTA, // Ex: Martelo, Alicate (precisa devolver no fim do dia)
+    RESTRITO    // Ex: Arduino, Motores (precisa de autorização)
 }

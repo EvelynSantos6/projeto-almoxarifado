@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -26,55 +27,42 @@ public class RequisicaoService {
     private final RequisicaoRepository requisicaoRepository;
     private final ItemRepository itemRepository;
 
+    @Transactional
     public Requisicao criarRequisicao(RequisicaoRequest request, Usuario aluno) {
-        // 1. Gerar número aleatório da requisição
+        // Em vez de gerar fixo, use o seu método privado que checa o banco
         Long numeroRequisicao = gerarNumeroRequisicao();
 
-        // 2. Criar a requisição
         Requisicao requisicao = new Requisicao();
-        requisicao.setId(numeroRequisicao);
+        requisicao.setId(numeroRequisicao); // Usando o número aleatório como ID
         requisicao.setAluno(aluno);
         requisicao.setStatus(StatusRequisicao.PENDENTE);
         requisicao.setDataRequisicao(LocalDateTime.now());
         requisicao.setAutorizacaoProfessor(request.isAutorizacaoProfessor());
-        requisicao.setItens(new ArrayList<>());
 
-        // 3. Processar cada item da requisição (usando Map)
+        List<ItemRequisicao> itensParaSalvar = new ArrayList<>();
+
         for (Map.Entry<Long, Integer> entry : request.getItens().entrySet()) {
-            Long itemId = entry.getKey();
-            Integer quantidade = entry.getValue();
+            Item item = itemRepository.findById(entry.getKey())
+                    .orElseThrow(() -> new RuntimeException("Item não encontrado"));
 
-            // Buscar o item no banco de dados
-            Item item = itemRepository.findById(itemId)
-                    .orElseThrow(() -> new RuntimeException("Item não encontrado com ID: " + itemId));
-
-            // Validar se tem estoque disponível
-            if (item.getQuantidadeDisponivel() < quantidade) {
-                throw new RuntimeException(
-                        "Estoque insuficiente para o item: " + item.getNome() +
-                                ". Disponível: " + item.getQuantidadeDisponivel() +
-                                ", Solicitado: " + quantidade
-                );
-            }
-
-            // Validar se é item restrito e tem autorização
+            // Regra de Item Restrito
             if (item.getTipo() == TipoItem.RESTRITO && !request.isAutorizacaoProfessor()) {
-                throw new RuntimeException(
-                        "ATENÇÃO: " + item.getNome() + " é um item restrito! " +
-                                "Você precisa apresentar autorização do professor para retirar este item."
-                );
+                throw new RuntimeException("O item " + item.getNome() + " exige autorização do professor!");
             }
 
-            // Criar o item da requisição
-            ItemRequisicao itemRequisicao = new ItemRequisicao();
-            itemRequisicao.setItem(item);
-            itemRequisicao.setQuantidade(quantidade);
-            itemRequisicao.setRequisicao(requisicao);
+            // Validação de Estoque
+            if (item.getQuantidadeDisponivel() < entry.getValue()) {
+                throw new RuntimeException("Estoque insuficiente para: " + item.getNome());
+            }
 
-            requisicao.getItens().add(itemRequisicao);
+            ItemRequisicao ir = new ItemRequisicao();
+            ir.setItem(item);
+            ir.setQuantidade(entry.getValue());
+            ir.setRequisicao(requisicao);
+            itensParaSalvar.add(ir);
         }
 
-        // 4. Salvar a requisição
+        requisicao.setItens(itensParaSalvar);
         return requisicaoRepository.save(requisicao);
     }
 

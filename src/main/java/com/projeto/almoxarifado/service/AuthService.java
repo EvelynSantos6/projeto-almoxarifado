@@ -6,10 +6,6 @@ import com.projeto.almoxarifado.dto.UsuarioRequest;
 import com.projeto.almoxarifado.model.Usuario;
 import com.projeto.almoxarifado.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -21,7 +17,6 @@ import org.springframework.stereotype.Service;
 public class AuthService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
-
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -32,27 +27,22 @@ public class AuthService implements UserDetailsService {
 
     public Usuario register(UsuarioRequest request) {
         if (usuarioRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Usuário já existe!");
-        }
-
-        if (usuarioRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email já cadastrado!");
+            throw new RuntimeException("Nome de usuário já existe!");
         }
 
         Usuario usuario = new Usuario();
         usuario.setUsername(request.getUsername());
         usuario.setPassword(passwordEncoder.encode(request.getPassword()));
         usuario.setNome(request.getNome());
+        usuario.setEmail(request.getEmail());
         usuario.setTurma(request.getTurma());
         usuario.setTipo(request.getTipo());
-        usuario.setEmail(request.getEmail());
         usuario.setAtivo(true);
 
         return usuarioRepository.save(usuario);
     }
 
     public LoginResponse login(LoginRequest request) {
-
         Usuario usuario = usuarioRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 

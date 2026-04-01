@@ -1,70 +1,49 @@
 package com.projeto.almoxarifado.model;
 
+import com.projeto.almoxarifado.enums.Role;
 import jakarta.persistence.*;
 import lombok.Data;
-import jakarta.persistence.Id;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 
+@Data
 @Entity
 @Table(name = "usuarios")
-@Data
 public class Usuario implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
     private String username;
-
-    @Column(unique = true, nullable = false)
-    private String email;
-
-    @Column(nullable = false)
     private String password;
-
-    @Column(nullable = false)
     private String nome;
-
+    private String email;
     private String turma;
 
-    @Column(nullable = false)
-    private String tipo;  // "ALUNO" ou "FUNCIONARIO"
+    @Enumerated(EnumType.STRING)
+    private Role tipo; // ALUNO ou FUNCIONARIO
 
     private boolean ativo = true;
 
-    // Implementação dos métodos do UserDetails
+    // ESTES MÉTODOS ABAIXO SÃO OBRIGATÓRIOS PARA O ERRO SUMIR:
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + tipo));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + tipo.name()));
     }
 
     @Override
-    public String getUsername() {
-        return this.username;
-    }
+    public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
+    public boolean isAccountNonLocked() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
+    public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return this.ativo;
-    }
+    public boolean isEnabled() { return ativo; }
 }
