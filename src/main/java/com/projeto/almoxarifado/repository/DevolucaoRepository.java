@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface DevolucaoRepository extends JpaRepository<Devolucao, Long> {
-    // Agora isso volta a funcionar sem precisar de @Query!
+    // O Spring agora encontra "id" dentro de "Requisicao" automaticamente
     List<Devolucao> findByRequisicaoId(Long requisicaoId);
 
     List<Devolucao> findByItemId(Long itemId);

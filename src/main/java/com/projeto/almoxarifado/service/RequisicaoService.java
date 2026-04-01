@@ -32,7 +32,7 @@ public class RequisicaoService {
 
         // 2. Criar a requisição
         Requisicao requisicao = new Requisicao();
-        requisicao.setNumeroRequisicao(numeroRequisicao);
+        requisicao.setId(numeroRequisicao);
         requisicao.setAluno(aluno);
         requisicao.setStatus(StatusRequisicao.PENDENTE);
         requisicao.setDataRequisicao(LocalDateTime.now());
