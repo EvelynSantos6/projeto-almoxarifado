@@ -7,7 +7,7 @@ import jakarta.persistence.Id;
 
 @Entity
 @Table(name = "itens")
-@Data
+@Data // Esta anotação gera o getTipo() e getQuantidadeDisponivel() automaticamente
 public class Item {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -15,9 +15,10 @@ public class Item {
 
     private String nome;
 
-    // ADICIONE ESTA LINHA SE ELA NÃO EXISTIR
     private boolean ativo = true;
 
     @Enumerated(EnumType.STRING)
     private TipoItem tipo;
+
+    private Integer quantidadeDisponivel;
 }
