@@ -18,7 +18,8 @@ import java.util.List;
 public class Requisicao {
 
     @Id
-    private Long numeroRequisicao;
+    @GeneratedValue(strategy = GenerationType.IDENTITY) //
+    private Long id;
 
     @ManyToOne
     @JoinColumn(name = "aluno_id", nullable = false)
