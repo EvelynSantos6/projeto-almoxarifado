@@ -21,8 +21,8 @@ import org.springframework.stereotype.Service;
 public class AuthService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
+
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -52,28 +52,20 @@ public class AuthService implements UserDetailsService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getUsername(),
-                            request.getPassword()
-                    )
-            );
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        Usuario usuario = usuarioRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-            Usuario usuario = usuarioRepository.findByUsername(request.getUsername())
-                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-
-            LoginResponse response = new LoginResponse();
-            response.setUsername(usuario.getUsername());
-            response.setNome(usuario.getNome());
-            response.setTipo(usuario.getTipo());
-            response.setEmail(usuario.getEmail());
-
-            return response;
-        } catch (Exception e) {
-            throw new RuntimeException("Erro ao fazer login: " + e.getMessage());
+        if (!passwordEncoder.matches(request.getPassword(), usuario.getPassword())) {
+            throw new RuntimeException("Senha inválida");
         }
+
+        LoginResponse response = new LoginResponse();
+        response.setUsername(usuario.getUsername());
+        response.setNome(usuario.getNome());
+        response.setTipo(usuario.getTipo());
+        response.setEmail(usuario.getEmail());
+
+        return response;
     }
 }
